@@ -189,12 +189,12 @@ nav button{font-size:10px}
 <section id="tabAdd" class="tab">
   <div class="seg" id="kinds"></div>
   <div class="card" style="margin-top:12px">
-    <div class="ratehint" id="amtLbl" hidden style="margin:0 2px 2px">💰 Основна зарплата</div>
+    <div class="ratehint" id="amtLbl" hidden style="margin:0 2px 2px">💰 Загальна зарплата (вже з квартирою й премією)</div>
     <div class="amtrow"><input id="amt" inputmode="decimal" placeholder="0" autocomplete="off"><span id="cur">zł</span></div>
     <div class="sub2" id="loanRow" hidden><button class="pill on" data-lm="loan">🤝 Позичив</button><button class="pill" data-lm="back">✅ Повернули</button></div>
     <div class="descrow" id="descRow"><span class="emo" id="emo">🧾</span><input id="desc" class="txt" placeholder="За що? Напр. їда" maxlength="80" autocomplete="off"></div>
-    <div class="descrow" id="houseRow" hidden><span class="emo">🏠</span><input id="houseIn" class="txt" inputmode="decimal" placeholder="Квартира, zł" autocomplete="off"></div>
-    <div class="descrow" id="bonusRow" hidden><span class="emo">🎁</span><input id="bonusIn" class="txt" inputmode="decimal" placeholder="Премія, zł (якщо є)" autocomplete="off"></div>
+    <div class="descrow" id="houseRow" hidden><span class="emo">🏠</span><input id="houseIn" class="txt" inputmode="decimal" placeholder="з них квартира, zł" autocomplete="off"></div>
+    <div class="descrow" id="bonusRow" hidden><span class="emo">🎁</span><input id="bonusIn" class="txt" inputmode="decimal" placeholder="з них премія, zł (якщо є)" autocomplete="off"></div>
     <input id="usdIn" class="txt" inputmode="decimal" placeholder="Скільки $ отримав?" autocomplete="off" hidden>
     <div class="ratehint" id="rateLine" hidden></div>
     <input id="zlIn" class="txt" inputmode="decimal" placeholder="Скільки отримав у zł? (необов'язково)" autocomplete="off" hidden>
@@ -436,16 +436,16 @@ nav button{font-size:10px}
   function updateSave() {
     var a = amountVal(), k = S.kind, ok = a > 0 && !S.saving;
     var hv = parseFloat(String($('houseIn').value).replace(',', '.')) || 0, bv = parseFloat(String($('bonusIn').value).replace(',', '.')) || 0;
-    if (k === 'sal') { ok = (a > 0 || hv > 0 || bv > 0) && !S.saving; }
+    if (k === 'sal') { ok = a > 0 && (hv + bv) <= a && !S.saving; }
     if ((k === 'exp' || k === 'cry' || k === 'loan' || k === 'inv') && !$('desc').value.trim()) ok = false;
     var b = $('save');
     b.disabled = !ok;
     var isEx = k === 'exp' || k === 'cry', dsc = $('desc').value.trim();
     $('emo').textContent = k === 'loan' ? '👤' : k === 'inv' ? '📈' : (dsc ? emojiFor(dsc) : '🧾');
     var uv = parseFloat(String($('usdIn').value).replace(',', '.')), rl = $('rateLine');
-    var stot = (a > 0 ? a : 0) + hv + bv;
+    var stot = a > 0 ? a : 0, over = k === 'sal' && (hv + bv) > stot;
     rl.hidden = !((k === 'inv' && a > 0 && uv > 0) || (k === 'sal' && stot > 0));
-    if (!rl.hidden && k === 'sal') rl.textContent = '💰 Разом отримав: ' + fmt(stot) + ' zł';
+    if (!rl.hidden && k === 'sal') rl.textContent = over ? '⚠️ Квартира + премія більші за загальну суму' : '💰 Основна частина: ' + fmt(stot - hv - bv) + ' zł · квартира ' + fmt(hv) + (bv ? ' · премія ' + fmt(bv) : '');
     else if (!rl.hidden) rl.textContent = '💱 Курс: ' + rt(a / uv) + ' zł за $' + (S.init.invest && S.init.invest.rate ? ' (в банку зараз ≈ ' + rt(S.init.invest.rate) + ')' : '');
     $('pinNow').hidden = !(isEx && dsc && pinIdx(dsc, k === 'cry' ? 'usd' : 'zl') < 0);
     if (k === 'sal') { b.textContent = stot > 0 ? 'Записати ' + fmt(stot) + ' zł' : 'Записати'; return; }
@@ -508,7 +508,7 @@ nav button{font-size:10px}
       S.saving = false; S.mo = null; S.yr = null;
       if (r.debts) S.init.debts = r.debts;
       if (r.invest) S.init.invest = r.invest;
-      var what = k === 'inv' ? '📈 ' + fmt(a) + ' zł' + (p.usd ? ' → ' + fmt(p.usd) + ' $ (курс ' + rt(a / p.usd) + ')' : '') : k === 'loan' ? (S.loanMode === 'back' ? p.desc + ' повернув(ла) ' + fmt(a) + ' zł' : '🤝 ' + p.desc + ' — ' + fmt(a) + ' zł') : k === 'sal' ? 'Зарплата ' + fmt(a + p.house + p.bonus) + ' zł' + (p.house || p.bonus ? ' (' + [a ? 'основна ' + fmt(a) : '', p.house ? 'квартира ' + fmt(p.house) : '', p.bonus ? 'премія ' + fmt(p.bonus) : ''].filter(Boolean).join(' + ') + ')' : '') : k === 'trf' ? 'Вивід ' + fmt(a) + ' $' : p.desc + ' — ' + fmt(a) + ' ' + KINDS[k].cur;
+      var what = k === 'inv' ? '📈 ' + fmt(a) + ' zł' + (p.usd ? ' → ' + fmt(p.usd) + ' $ (курс ' + rt(a / p.usd) + ')' : '') : k === 'loan' ? (S.loanMode === 'back' ? p.desc + ' повернув(ла) ' + fmt(a) + ' zł' : '🤝 ' + p.desc + ' — ' + fmt(a) + ' zł') : k === 'sal' ? 'Зарплата ' + fmt(a) + ' zł' + (p.house || p.bonus ? ' (з них ' + [ p.house ? 'квартира ' + fmt(p.house) : '', p.bonus ? 'премія ' + fmt(p.bonus) : ''].filter(Boolean).join(' + ') + ')' : '') : k === 'trf' ? 'Вивід ' + fmt(a) + ' $' : p.desc + ' — ' + fmt(a) + ' ' + KINDS[k].cur;
       var msg = '✅ ' + what + (k === 'loan' ? '' : ' · ' + mlow(r.ym));
       if (k === 'loan') { var pr = r.debts.people.concat(r.debts.settled).filter(function (x) { return x.name.toLowerCase() === p.desc.toLowerCase(); })[0]; msg += pr && pr.owed > 0.005 ? ' · винен ' + fmt(pr.owed) + ' zł' : ' · боргу нема 🎉'; }
       if (r.same) msg += ' (вже ' + r.same.n + ' рази: ' + (r.same.zl ? fmt(r.same.zl) + ' zł' : fmt(r.same.usd) + ' $') + ')';
