@@ -269,6 +269,7 @@ nav button{font-size:10px}
     tg = window.Telegram && window.Telegram.WebApp;
     if (tg) {
       tg.ready(); tg.expand();
+      if (!KEY && tg.initData) KEY = 'tg:' + tg.initData;   // вхід за акаунтом Telegram
     }
   } catch (e) { tg = null; }
 
