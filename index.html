@@ -158,7 +158,8 @@ nav button span{font-size:20px}
 .chart.g .c i{background:linear-gradient(180deg,#34d399,#059669)}
 .bar .tr.g i{background:linear-gradient(90deg,#34d399,#059669)}
 .ratehint{font-size:12.5px;color:var(--mute);padding:8px 2px 0}
-.wl.pas{opacity:.82}
+.ck{width:24px;height:24px;border-radius:8px;border:2px solid var(--line);flex:none;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#1b1403}.ck.on{background:#fbbf24;border-color:#fbbf24}
+.wl.pas{opacity:.7}
 .wl.pas .wv{font-weight:600}
 .hero.gold{background:linear-gradient(135deg,#1e1b4b,#4c1d95 55%,#7c2d12)}
 .cur3{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
@@ -691,25 +692,27 @@ nav button{font-size:10px}
   var AS = { id: '', cur: 'zl', auto: '' };
   function wline(l, i, small) {
     var own = l.cur === 'zl' ? '' : fmt(l.neg ? -l.amount : l.amount) + ' ' + CURS[l.cur] + (l.cur === 'usd' ? '' : ' · ');
-    return '<button class="wl' + (l.neg ? ' neg' : '') + (small ? ' pas' : '') + '" data-wi="' + i + '"><span class="we">' + esc(l.emoji) + '</span><span class="wn"><b>' + esc(stripEmo(l.name)) + (l.auto ? '<span class="badge">авто</span>' : '') + '</b><small>' + (l.neg ? 'борг · ' : '') + own + (l.cur === 'usd' ? '' : '≈ ' + fmt(Math.round(l.usd)) + ' $') + '</small></span><span class="wv">' + fmt(Math.round(l.zl)) + ' zł<small>' + fmt(l.uah) + ' ₴</small></span></button>';
+    return '<button class="wl' + (l.neg ? ' neg' : '') + (small ? ' pas' : '') + '" data-wi="' + i + '"><span class="ck' + (l.inc ? ' on' : '') + '" data-wk="' + i + '">' + (l.inc ? '✓' : '') + '</span><span class="we">' + esc(l.emoji) + '</span><span class="wn"><b>' + esc(stripEmo(l.name)) + (l.auto ? '<span class="badge">авто</span>' : '') + '</b><small>' + (l.neg ? 'борг · ' : '') + own + (l.cur === 'usd' ? '' : '≈ ' + fmt(Math.round(l.usd)) + ' $') + '</small></span><span class="wv">' + fmt(Math.round(l.zl)) + ' zł<small>' + fmt(l.uah) + ' ₴</small></span></button>';
   }
   function renderWealth(w) {
-    var h = '<div class="card hero gold"><div class="l">💰 Живий капітал · крипта, готівка, картки</div><div class="v">' + fmt(Math.round(w.zl)) + ' <small>zł</small></div><div class="cur3"><span>' + fmt(Math.round(w.usd)) + ' $</span><span>' + fmt(Math.round(w.uah)) + ' ₴</span></div>';
+    var h = '<div class="card hero gold"><div class="l">💰 Мій капітал · те, що відмічено галочкою</div><div class="v">' + fmt(Math.round(w.zl)) + ' <small>zł</small></div><div class="cur3"><span>' + fmt(Math.round(w.usd)) + ' $</span><span>' + fmt(Math.round(w.uah)) + ' ₴</span></div>';
     if (w.change !== null && w.change !== undefined) h += '<div class="trend ' + (w.change >= 0 ? 'down' : 'up') + '">' + (w.change >= 0 ? '↑ +' : '↓ −') + fmt(Math.abs(w.change)) + ' zł проти ' + esc(w.prevName) + '</div>';
     h += '</div><div class="hint" style="margin-top:8px">💱 1 $ = ' + rt(w.rate) + ' zł · 1 ₴ = ' + (Math.round(w.uahRate * 10000) / 10000).toString().replace('.', ',') + ' zł · 1 zł ≈ ' + rt(1 / w.uahRate) + ' ₴ (курс NBP)</div>';
     h += '<button class="addbtn" id="newAsset">➕ Додати актив</button>';
     var live = [], pas = [];
-    w.lines.forEach(function (l, i) { (l.passive ? pas : live).push([l, i]); });
+    w.lines.forEach(function (l, i) { (l.inc ? live : pas).push([l, i]); });
     if (!w.lines.length) {
-      h += '<div class="card empty" style="margin-top:12px">Додай, що в тебе є: картку, готівку, гривні, машину. Живий капітал рахується окремо, а машина й подібне йде знизу як майно.</div>';
+      h += '<div class="card empty" style="margin-top:12px">Додай, що в тебе є: картку, готівку, гривні, машину. Галочкою ліворуч обираєш, що рахувати в капіталі.</div>';
     } else {
-      if (live.length) { h += '<h3>З ЧОГО СКЛАДАЄТЬСЯ</h3><div class="card">'; live.forEach(function (x) { h += wline(x[0], x[1], false); }); h += '</div>'; }
-      h += '<div class="hint" style="margin-top:8px">🪙 «Крипта» і 🤝 «Мені винні» беруться самі з вкладок «Інвест» і «Борги».</div>';
+      h += '<div class="hint" style="margin-top:8px">☑️ Став або знімай галочку, щоб рахувати чи ні. Натисни на назву, щоб змінити суму.</div>';
+      if (live.length) { h += '<h3>РАХУЄТЬСЯ В КАПІТАЛІ</h3><div class="card">'; live.forEach(function (x) { h += wline(x[0], x[1], false); }); h += '</div>'; }
+      else h += '<div class="card empty" style="margin-top:12px">Жодну позицію не вибрано. Постав галочки нижче.</div>';
       if (pas.length) {
-        h += '<h3>🚗 МАЙНО · ПАСИВ (не входить у капітал вище)</h3><div class="card">';
+        h += '<h3>НЕ РАХУЄТЬСЯ (майно, пасив і те, що ти зняв)</h3><div class="card">';
         pas.forEach(function (x) { h += wline(x[0], x[1], true); });
-        h += '</div><div class="hint" style="margin-top:8px">Разом із майном: <b>' + fmt(Math.round(w.all.zl)) + ' zł</b> · ' + fmt(Math.round(w.all.usd)) + ' $ · ' + fmt(Math.round(w.all.uah)) + ' ₴</div>';
+        h += '</div><div class="hint" style="margin-top:8px">Разом з усім: <b>' + fmt(Math.round(w.all.zl)) + ' zł</b> · ' + fmt(Math.round(w.all.usd)) + ' $ · ' + fmt(Math.round(w.all.uah)) + ' ₴</div>';
       }
+      h += '<div class="hint" style="margin-top:8px">🪙 «Крипта» і 🤝 «Мені винні» беруться самі з вкладок «Інвест» і «Борги».</div>';
     }
     if (w.hist.length > 1) {
       var max = Math.max.apply(null, w.hist.map(function (m) { return Math.max(m.zl, 0); }).concat([1]));
@@ -770,6 +773,8 @@ nav button{font-size:10px}
 
   /* ---------- події ---------- */
   document.addEventListener('click', function (e) {
+    var ck = e.target.closest('[data-wk]');
+    if (ck) { var wl0 = S.wealth.lines[+ck.getAttribute('data-wk')]; e.preventDefault(); haptic('ok'); api('appWealthToggle', wl0.key, !wl0.inc).then(renderWealth).catch(function (er) { toast('Не вийшло: ' + (er && er.message ? er.message : er), null, true); }); return; }
     var b = e.target.closest('button'); if (!b) return;
     if (b.parentNode === $('kinds')) return setKind(b.getAttribute('data-k'));
     if (b.hasAttribute('data-lm')) { S.loanMode = b.getAttribute('data-lm'); return renderForm(); }
