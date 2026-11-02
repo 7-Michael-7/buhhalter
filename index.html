@@ -34,7 +34,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;font-size:15px}
 button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 input{font:inherit;color:var(--ink)}
-main{max-width:520px;margin:0 auto;padding:14px 14px 170px}
+main{max-width:520px;margin:0 auto;padding:calc(14px + var(--tg-safe-area-inset-top,0px) + var(--tg-content-safe-area-inset-top,0px)) 14px 170px}
 .tab[hidden]{display:none}
 h3{margin:18px 4px 8px;font-size:13px;font-weight:700;color:var(--mute);letter-spacing:.02em}
 .card{background:var(--card);border-radius:18px;box-shadow:var(--shadow);padding:14px}
@@ -272,6 +272,8 @@ nav button{font-size:10px}
     tg = window.Telegram && window.Telegram.WebApp;
     if (tg) {
       tg.ready(); tg.expand();
+      try { if (tg.disableVerticalSwipes) tg.disableVerticalSwipes(); } catch (e) {}
+      try { if (tg.requestFullscreen && (tg.platform === 'ios' || tg.platform === 'android') && parseFloat(tg.version) >= 8) tg.requestFullscreen(); } catch (e) {}
       if (!KEY && tg.initData) KEY = 'tg:' + tg.initData;   // вхід за акаунтом Telegram
     }
   } catch (e) { tg = null; }
