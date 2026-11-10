@@ -159,6 +159,13 @@ nav button span{font-size:20px}
 .bar .tr.g i{background:linear-gradient(90deg,#34d399,#059669)}
 .ratehint{font-size:12.5px;color:var(--mute);padding:8px 2px 0}
 .ck{width:24px;height:24px;border-radius:8px;border:2px solid var(--line);flex:none;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#1b1403}.ck.on{background:#fbbf24;border-color:#fbbf24}
+.walbar{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.walc{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 14px;text-align:left;box-shadow:var(--shadow);display:block;width:100%}
+.walc small{display:block;color:var(--mute);font-size:12px;font-weight:600}.walc b{font-size:19px;font-weight:800;white-space:nowrap}.walc b.neg{color:var(--zl)}
+.walc.setup{grid-column:1/3;font-weight:700;font-size:14px}
+.walseg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+.walseg .pill{padding:11px 8px;font-size:14px;text-align:center;line-height:1.25}.walseg .pill small{font-size:12px;font-weight:600;opacity:.8}
+.walrow{margin-top:10px}
 .wl.pas{opacity:.7}
 .wl.pas .wv{font-weight:600}
 .hero.gold{background:linear-gradient(135deg,#1e1b4b,#4c1d95 55%,#7c2d12)}
@@ -171,7 +178,7 @@ nav button span{font-size:20px}
 .wl .wv{text-align:right;font-weight:800;font-size:16px;white-space:nowrap}.wl .wv small{display:block;font-weight:500;color:var(--mute);font-size:11.5px}
 .wl.neg .wv{color:var(--zl)}
 .badge{font-size:10px;font-weight:700;background:var(--chip);color:var(--mute);border-radius:6px;padding:1px 6px;margin-left:6px;vertical-align:1px}
-#sheetBg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+#sheetBg,#wBg{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center}
 .sheet{background:var(--solid);width:100%;max-width:520px;border-radius:22px 22px 0 0;padding:16px 16px calc(18px + env(safe-area-inset-bottom));max-height:90vh;overflow:auto}
 .sheet .sh-h{font-size:18px;font-weight:800;margin-bottom:10px}
 .presets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
@@ -190,6 +197,7 @@ nav button{font-size:10px}
 <main>
 
 <section id="tabAdd" class="tab">
+  <div class="walbar" id="walBar"></div>
   <div class="seg" id="kinds"></div>
   <div class="card" style="margin-top:12px">
     <div class="ratehint" id="amtLbl" hidden style="margin:0 2px 2px">💰 Загальна зарплата (вже з квартирою й премією)</div>
@@ -201,6 +209,7 @@ nav button{font-size:10px}
     <input id="usdIn" class="txt" inputmode="decimal" placeholder="Скільки $ отримав?" autocomplete="off" hidden>
     <div class="ratehint" id="rateLine" hidden></div>
     <input id="zlIn" class="txt" inputmode="decimal" placeholder="Скільки отримав у zł? (необов'язково)" autocomplete="off" hidden>
+    <div class="walrow" id="walRow" hidden><div class="ratehint" id="walLbl" style="margin:0 2px"></div><div class="walseg" id="walSeg"></div><div class="ratehint" id="walHint" style="margin:6px 2px 0"></div></div>
     <div class="monthrow" id="monthRow"><small>Місяць:</small><button class="pill" id="mCur"></button><button class="pill" id="mPrev"></button><select class="pill" id="mSel"></select></div>
   </div>
   <div id="chipsWrap">
@@ -250,6 +259,16 @@ nav button{font-size:10px}
   <button data-tab="Wealth"><span>💎</span>Баланс</button>
 </nav>
 
+<div id="wBg" hidden><div class="sheet">
+  <div class="sh-h">💰 Гроші на руках</div>
+  <div class="ratehint" style="margin:0 0 6px">Впиши, скільки є зараз. Далі зарплата, витрати, борги й інвестиції змінюватимуть ці суми самі.</div>
+  <div class="descrow"><span class="emo">💳</span><input id="wCard" class="txt" inputmode="decimal" placeholder="На картці зараз, zł" autocomplete="off"></div>
+  <div class="descrow"><span class="emo">💵</span><input id="wCash" class="txt" inputmode="decimal" placeholder="Готівки зараз, zł" autocomplete="off"></div>
+  <div class="acts"><button class="sv" id="wSave">Зберегти</button></div>
+  <div class="ratehint" style="margin:16px 2px 4px">🔄 Зняв готівку або поклав на картку</div>
+  <div class="descrow"><input id="wMv" class="txt" inputmode="decimal" placeholder="Сума, zł" autocomplete="off"></div>
+  <div class="sub2"><button class="pill" id="wMvCash">💳 → 💵 Зняв з картки</button><button class="pill" id="wMvCard">💵 → 💳 Поклав на картку</button></div>
+</div></div>
 <div id="sheetBg" hidden><div class="sheet">
   <div class="sh-h" id="shT">Новий актив</div>
   <div class="presets" id="presets"></div>
@@ -334,7 +353,10 @@ nav button{font-size:10px}
     loan: { ico: '🤝', name: 'Борг', cur: 'zł' },
     inv: { ico: '📈', name: 'Інвест', cur: 'zł' }
   };
-  var S = { edit: false, loanMode: 'loan', kind: 'exp', which: 'cur', init: null, picked: null, saving: false, mo: null, yr: null, toastT: null, lastUndo: null };
+  var WN = { card: '💳 Картка', cash: '💵 Готівка' };
+  var WLBL = { exp: 'Чим платиш', loan: 'Звідки дав гроші', back: 'Куди повернули', inv: 'Звідки закинув', sal: 'Куди прийшла зарплата', trf: 'Куди прийшли гроші' };
+  var WSIGN = { exp: -1, loan: -1, back: 1, inv: -1, sal: 1, trf: 1 };
+  var S = { wallet: 'card', edit: false, loanMode: 'loan', kind: 'exp', which: 'cur', init: null, picked: null, saving: false, mo: null, yr: null, toastT: null, lastUndo: null };
 
   function mname(ym) { return S.init.names[parseInt(ym.slice(5, 7), 10) - 1]; }
   function mlow(ym) { return mname(ym).toLowerCase() + (S.init && ym.slice(0, 4) !== S.init.ym.slice(0, 4) ? ' ' + ym.slice(0, 4) : ''); }
@@ -361,6 +383,7 @@ nav button{font-size:10px}
   }
   function setKind(k) {
     S.kind = k; S.picked = null;
+    try { S.wallet = (k === 'sal' || k === 'trf') ? 'card' : (localStorage.getItem('wallet') === 'cash' ? 'cash' : 'card'); } catch (er) {}
     S.which = k === 'sal' ? 'prev' : 'cur';
     $('amt').value = ''; $('desc').value = k === 'inv' ? 'Крипта' : ''; $('zlIn').value = ''; $('usdIn').value = '';
     $('houseIn').value = k === 'sal' ? String(S.init.house || 400) : ''; $('bonusIn').value = '';
@@ -438,8 +461,36 @@ nav button{font-size:10px}
     var l = S.init.pins.slice(); l.push({ desc: d, cur: cur, amount: amountVal() || 0 });
     savePins(l, '📌 Закріплено: ' + stripEmo(d)); haptic('ok');
   }
+  function wallets() { return S.init && S.init.wallets; }
+  function renderWalBar() {
+    var w = wallets(), h = '';
+    if (!w) h = '<button class="walc setup" data-wopen="1">💰 Постав, скільки зараз на картці й готівки<small>тоді баланс рахуватиметься сам</small></button>';
+    else ['card', 'cash'].forEach(function (k) { h += '<button class="walc" data-wopen="1"><small>' + WN[k] + '</small><b class="' + (w[k] < 0 ? 'neg' : '') + '">' + fmt(w[k]) + ' zł</b></button>'; });
+    $('walBar').innerHTML = h;
+  }
+  function renderWal() {
+    var kk = S.kind === 'loan' ? S.loanMode : S.kind, sign = WSIGN[kk];
+    $('walRow').hidden = !sign;
+    if (!sign) return;
+    $('walLbl').textContent = WLBL[kk];
+    var w = wallets(), a = amountVal() || 0, h = '';
+    ['card', 'cash'].forEach(function (k) { h += '<button class="pill' + (S.wallet === k ? ' on' : '') + '" data-w="' + k + '">' + WN[k] + (w ? '<br><small>' + fmt(w[k]) + ' zł</small>' : '') + '</button>'; });
+    $('walSeg').innerHTML = h;
+    var z = kk === 'trf' ? (parseFloat(String($('zlIn').value).replace(',', '.')) || Math.round(a * ((S.init && S.init.rate) || 0))) : a, hint = '';
+    if (w && z > 0) { var after = w[S.wallet] + sign * z; hint = after < 0 ? '⚠️ Не вистачає: на ' + (S.wallet === 'cash' ? 'готівці' : 'картці') + ' буде ' + fmt(after) + ' zł' : 'Після запису: ' + WN[S.wallet] + ' ' + fmt(after) + ' zł'; }
+    else if (!w) hint = 'Постав залишки вгорі, і тут буде видно, що лишиться.';
+    $('walHint').textContent = hint;
+  }
+  function openWal() { var w = wallets(); $('wCard').value = w ? String(w.card).replace('.', ',') : ''; $('wCash').value = w ? String(w.cash).replace('.', ',') : ''; $('wMv').value = ''; $('wBg').hidden = false; }
+  function closeWal() { $('wBg').hidden = true; }
+  function walDone(r, msg, row) {
+    S.init.wallets = r.wallets; S.mo = null; renderWalBar(); renderWal(); closeWal(); toast(msg, row || null); haptic('ok');
+    if (!$('tabWealth').hidden) loadWealth();
+  }
+  function walFail(e) { toast('Не вийшло: ' + (e && e.message ? e.message : e), null, true); haptic('err'); }
   function amountVal() { return parseFloat(String($('amt').value).replace(/\s/g, '').replace(',', '.')); }
   function updateSave() {
+    renderWal();
     var a = amountVal(), k = S.kind, ok = a > 0 && !S.saving;
     var hv = parseFloat(String($('houseIn').value).replace(',', '.')) || 0, bv = parseFloat(String($('bonusIn').value).replace(',', '.')) || 0;
     if (k === 'sal') { ok = a > 0 && (hv + bv) <= a && !S.saving; }
@@ -507,7 +558,7 @@ nav button{font-size:10px}
   function save() {
     if ($('save').disabled) return;
     var k = S.kind, a = amountVal() || 0;
-    var p = { house: parseFloat(String($('houseIn').value).replace(',', '.')) || 0, bonus: parseFloat(String($('bonusIn').value).replace(',', '.')) || 0, kind: k === 'loan' ? S.loanMode : k, amount: a, usd: parseFloat(String($('usdIn').value).replace(',', '.')) || 0, desc: $('desc').value.trim(), ym: chosenYm() };
+    var p = { house: parseFloat(String($('houseIn').value).replace(',', '.')) || 0, bonus: parseFloat(String($('bonusIn').value).replace(',', '.')) || 0, kind: k === 'loan' ? S.loanMode : k, wallet: S.wallet, amount: a, usd: parseFloat(String($('usdIn').value).replace(',', '.')) || 0, desc: $('desc').value.trim(), ym: chosenYm() };
     if (k === 'trf') { var z = parseFloat(String($('zlIn').value).replace(',', '.')); if (z > 0) p.zl = z; }
     S.saving = true; updateSave(); $('save').textContent = 'Записую…';
     api('appAdd', p).then(function (r) {
@@ -518,6 +569,8 @@ nav button{font-size:10px}
       var msg = '✅ ' + what + (k === 'loan' ? '' : ' · ' + mlow(r.ym));
       if (k === 'loan') { var pr = r.debts.people.concat(r.debts.settled).filter(function (x) { return x.name.toLowerCase() === p.desc.toLowerCase(); })[0]; msg += pr && pr.owed > 0.005 ? ' · винен ' + fmt(pr.owed) + ' zł' : ' · боргу нема 🎉'; }
       if (r.same) msg += ' (вже ' + r.same.n + ' рази: ' + (r.same.zl ? fmt(r.same.zl) + ' zł' : fmt(r.same.usd) + ' $') + ')';
+      var sg = WSIGN[k === 'loan' ? S.loanMode : k];
+      if (r.wallets && sg) { S.init.wallets = r.wallets; renderWalBar(); msg += ' · ' + WN[r.wallet] + (sg < 0 ? ' лишилось ' : ' тепер ') + fmt(r.wallets[r.wallet]) + ' zł'; }
       toast(msg, r.row); S.lastN = r.n || 1;
       haptic('ok');
       if (k === 'inv') { renderMini(null); renderInvChips(); }
@@ -537,7 +590,7 @@ nav button{font-size:10px}
     $('toastBtn').hidden = true; $('toastMsg').textContent = 'Скасовую…';
     api('appUndo', row, S.lastN || 1).then(function () {
       toast('↩️ Скасовано', null); S.mo = null; S.yr = null;
-      return api('appInit').then(function (d) { S.init.debts = d.debts; S.init.invest = d.invest; S.init.month = d.month; if (S.kind === 'loan') { renderMini(null); renderDebtChips(); } else if (S.kind === 'inv') renderMini(null); else renderMini(d.month); return api('appRebuild'); });
+      return api('appInit').then(function (d) { S.init.wallets = d.wallets; renderWalBar(); S.init.debts = d.debts; S.init.invest = d.invest; S.init.month = d.month; if (S.kind === 'loan') { renderMini(null); renderDebtChips(); } else if (S.kind === 'inv') renderMini(null); else renderMini(d.month); return api('appRebuild'); });
     }).catch(function (e) { toast('Не вийшло скасувати: ' + (e && e.message ? e.message : e), null, true); });
   }
 
@@ -786,8 +839,12 @@ nav button{font-size:10px}
     if (b.id === 'mPrev') { S.which = 'prev'; return renderForm(); }
     if (b.id === 'save') return save();
     if (b.id === 'themeBtn') { THEME = THEME === 'dark' ? 'light' : 'dark'; try { localStorage.setItem('theme', THEME); } catch (e) {} return applyTheme(); }
+    if (b.hasAttribute('data-wopen')) return openWal();
+    if (b.hasAttribute('data-w')) { S.wallet = b.getAttribute('data-w'); try { localStorage.setItem('wallet', S.wallet); } catch (er) {} haptic('ok'); return renderWal(); }
+    if (b.id === 'wSave') { b.disabled = true; return api('appWalletsSet', $('wCard').value, $('wCash').value).then(function (r) { b.disabled = false; walDone(r, '✅ Залишки збережено'); }).catch(function (er) { b.disabled = false; walFail(er); }); }
+    if (b.id === 'wMvCash' || b.id === 'wMvCard') { var mvFrom = b.id === 'wMvCash' ? 'card' : 'cash'; return api('appWalletMove', mvFrom, $('wMv').value).then(function (r) { S.lastN = 1; walDone(r, '🔄 ' + (mvFrom === 'card' ? 'Зняв готівку' : 'Поклав на картку') + ' · 💳 ' + fmt(r.wallets.card) + ' · 💵 ' + fmt(r.wallets.cash) + ' zł', r.row); }).catch(walFail); }
     if (b.id === 'newAsset') return openSheet(null);
-    if (b.hasAttribute('data-wi')) { var wl = S.wealth.lines[+b.getAttribute('data-wi')]; if (wl.auto === 'debts') return showTab('Debts'); return openSheet(wl); }
+    if (b.hasAttribute('data-wi')) { var wl = S.wealth.lines[+b.getAttribute('data-wi')]; if (wl.auto === 'debts') return showTab('Debts'); if (wl.auto === 'card' || wl.auto === 'cash') return openWal(); return openSheet(wl); }
     if (b.hasAttribute('data-pre')) { var pr = PRESETS[+b.getAttribute('data-pre')]; $('aName').value = pr[1]; AS.cur = pr[2]; if (!AS.pasTouched) $('aPas').checked = isPas(pr[1]); curPillsRender(); return $('aAmt').focus(); }
     if (b.hasAttribute('data-cur')) { AS.cur = b.getAttribute('data-cur'); return curPillsRender(); }
     if (b.id === 'aSave') return saveAsset();
@@ -812,6 +869,7 @@ nav button{font-size:10px}
   ['houseIn', 'bonusIn'].forEach(function (id) { $(id).addEventListener('input', function () { this.value = this.value.replace(/[^0-9.,]/g, ''); updateSave(); }); });
   $('usdIn').addEventListener('input', function () { this.value = this.value.replace(/[^0-9.,]/g, ''); updateSave(); });
   $('mSel').addEventListener('change', function () { if (this.value) { S.which = 'custom'; S.customYm = this.value; } renderForm(); });
+  $('wBg').addEventListener('click', function (e) { if (e.target === this) closeWal(); });
   $('sheetBg').addEventListener('click', function (e) { if (e.target === this) closeSheet(); });
   $('aName').addEventListener('input', function () { if (!AS.pasTouched) $('aPas').checked = isPas(this.value); });
   $('aPas').addEventListener('change', function () { AS.pasTouched = true; });
@@ -824,7 +882,8 @@ nav button{font-size:10px}
   /* ---------- старт ---------- */
   applyTheme(); renderKinds();
   api('appInit').then(function (d) {
-    S.init = d; RULES = null; S.mo = d.ym; S.yr = d.ym.slice(0, 4);
+    try { S.wallet = localStorage.getItem('wallet') === 'cash' ? 'cash' : 'card'; } catch (er) {}
+    S.init = d; RULES = null; renderWalBar(); S.mo = d.ym; S.yr = d.ym.slice(0, 4);
     renderForm(); renderChips(); renderMini(d.month);
   }).catch(function (e) {
     $('mini').innerHTML = '<div class="empty">Не вдалося відкрити: ' + esc(e && e.message ? e.message : e) + '</div>';
