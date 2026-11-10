@@ -713,9 +713,9 @@ nav button{font-size:10px}
   function lossBlock(v) {
     var bd = v.breakdown, h = '<h3>КУДИ ПОДІЛИСЬ ГРОШІ</h3><div class="card">';
     if (!bd) return { sum: h + '<div style="color:var(--mute);font-size:13px">Впиши вартість портфеля нижче (блок «Вартість портфеля зараз»), і тут буде видно, куди поділись гроші.</div></div>', forms: '' };
-    var up = bd.totalLoss <= 0;
+    var trade = Math.round((bd.liq + bd.sold + bd.other + bd.drawdown) * 100) / 100, tpct = v.usd > 0 ? Math.round(trade / v.usd * 1000) / 10 : 0, up = trade <= 0;
     h += '<div style="font-size:30px;font-weight:800;line-height:1.1">' + fmt(v.value) + ' <small style="font-size:16px;color:var(--mute)">$ зараз</small></div><div style="color:var(--mute);font-size:13px;margin:2px 0 8px">≈ ' + fmt(Math.round(v.value * (v.rate || 0))) + ' zł' + (v.valueAdj ? ' · з урахуванням ' + (v.valueAdj > 0 ? '+' : '−') + fmt(Math.abs(v.valueAdj)) + ' $ після ' + esc(v.valueDate) : '') + '</div><div class="kv"><span>Закинув усього</span><b>' + fmt(v.zl) + ' zł · ' + fmt(v.usd) + ' $</b></div>' + (v.trfUsd ? '<div class="kv"><span>Виведено</span><b>' + fmt(v.trfUsd) + ' $</b></div>' : '') + '';
-    h += '<div class="pl ' + (up ? 'good' : 'bad') + '"><div><div class="big">' + (up ? '+' : '−') + fmt(Math.abs(bd.totalLoss)) + ' $</div><small>' + (up ? 'у плюсі' : 'втрачено з вкладеного') + '</small></div><div class="big">' + (up ? '+' : '−') + String(Math.abs(bd.pct)).replace('.', ',') + '%</div></div><div style="height:10px"></div>';
+    h += '<div class="pl ' + (up ? 'good' : 'bad') + '"><div><div class="big">' + (up ? '+' : '−') + fmt(Math.abs(trade)) + ' $</div><small>' + (up ? 'у плюсі' : 'втрачено в крипті') + '</small></div><div class="big">' + (up ? '+' : '−') + String(Math.abs(tpct)).replace('.', ',') + '%</div></div><div style="height:10px"></div>';
     if (bd.liq) h += lrow('💥', 'Ліквідації', bd.liq, v.usd, '');
     if (bd.sold) h += lrow('📉', 'Продав у мінус', bd.sold, v.usd, '');
     if (bd.held) h += lrow('🪙', 'Просадка по монетах, що лишились', bd.drawdown, v.usd, 'куплено за ' + fmt(bd.held.cost) + ' $, зараз ' + fmt(bd.held.now) + ' $');
