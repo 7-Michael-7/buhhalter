@@ -164,6 +164,7 @@ nav button span{font-size:20px}
 .walc small{display:block;color:var(--mute);font-size:12px;font-weight:600}.walc b{font-size:19px;font-weight:800;white-space:nowrap}.walc b.neg{color:var(--zl)}
 .walc.setup{grid-column:1/3;font-weight:700;font-size:14px}
 .walseg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+.walseg.w3{grid-template-columns:1fr 1fr 1fr}.walseg.w3 .pill{font-size:13px;padding:10px 4px}
 .walseg .pill{padding:11px 8px;font-size:14px;text-align:center;line-height:1.25}.walseg .pill small{font-size:12px;font-weight:600;opacity:.8}
 .walrow{margin-top:10px}
 .wl.pas{opacity:.7}
@@ -353,10 +354,11 @@ nav button{font-size:10px}
     loan: { ico: '🤝', name: 'Борг', cur: 'zł' },
     inv: { ico: '📈', name: 'Інвест', cur: 'zł' }
   };
-  var WN = { card: '💳 Картка', cash: '💵 Готівка' };
+  var WN = { card: '💳 Картка', cash: '💵 Готівка', crypto: '🪙 Крипта' };
+  function curOf(k) { return k === 'exp' && S.wallet === 'crypto' ? '$' : KINDS[k].cur; }
   var WLBL = { exp: 'Чим платиш', loan: 'Звідки дав гроші', back: 'Куди повернули', inv: 'Звідки закинув', sal: 'Куди прийшла зарплата', trf: 'Куди прийшли гроші' };
   var WSIGN = { exp: -1, loan: -1, back: 1, inv: -1, sal: 1, trf: 1 };
-  var S = { wallet: 'card', edit: false, loanMode: 'loan', kind: 'exp', which: 'cur', init: null, picked: null, saving: false, mo: null, yr: null, toastT: null, lastUndo: null };
+  var S = { lossCat: 'Ліквідація', wallet: 'card', edit: false, loanMode: 'loan', kind: 'exp', which: 'cur', init: null, picked: null, saving: false, mo: null, yr: null, toastT: null, lastUndo: null };
 
   function mname(ym) { return S.init.names[parseInt(ym.slice(5, 7), 10) - 1]; }
   function mlow(ym) { return mname(ym).toLowerCase() + (S.init && ym.slice(0, 4) !== S.init.ym.slice(0, 4) ? ' ' + ym.slice(0, 4) : ''); }
@@ -473,13 +475,20 @@ nav button{font-size:10px}
     $('walRow').hidden = !sign;
     if (!sign) return;
     $('walLbl').textContent = WLBL[kk];
+    if (S.wallet === 'crypto' && kk !== 'exp') S.wallet = 'card';
     var w = wallets(), a = amountVal() || 0, h = '';
-    ['card', 'cash'].forEach(function (k) { h += '<button class="pill' + (S.wallet === k ? ' on' : '') + '" data-w="' + k + '">' + WN[k] + (w ? '<br><small>' + fmt(w[k]) + ' zł</small>' : '') + '</button>'; });
+    $('walSeg').className = 'walseg' + (kk === 'exp' ? ' w3' : '');
+    (kk === 'exp' ? ['card', 'cash', 'crypto'] : ['card', 'cash']).forEach(function (k) { h += '<button class="pill' + (S.wallet === k ? ' on' : '') + '" data-w="' + k + '">' + WN[k] + (k === 'crypto' ? (S.init.invest && S.init.invest.value != null ? '<br><small>' + fmt(S.init.invest.value) + ' $</small>' : '') : (w ? '<br><small>' + fmt(w[k]) + ' zł</small>' : '')) + '</button>'; });
     $('walSeg').innerHTML = h;
     var z = kk === 'trf' ? (parseFloat(String($('zlIn').value).replace(',', '.')) || Math.round(a * ((S.init && S.init.rate) || 0))) : a, hint = '';
     if (w && z > 0) { var after = w[S.wallet] + sign * z; hint = after < 0 ? '⚠️ Не вистачає: на ' + (S.wallet === 'cash' ? 'готівці' : 'картці') + ' буде ' + fmt(after) + ' zł' : 'Після запису: ' + WN[S.wallet] + ' ' + fmt(after) + ' zł'; }
     else if (!w) hint = 'Постав залишки вгорі, і тут буде видно, що лишиться.';
+    if (S.wallet === 'crypto' && kk === 'exp') {
+      var cv = S.init.invest && S.init.invest.value;
+      hint = a > 0 ? (cv != null ? 'Із крипти: на біржі стане ' + fmt(cv - a) + ' $ (було ' + fmt(cv) + ' $)' : 'Із крипти: сума в $. Впиши вартість портфеля у вкладці «Інвест», щоб рахувати залишок.') : 'Сума в доларах: вона віднімається з крипти.';
+    }
     $('walHint').textContent = hint;
+    $('cur').textContent = curOf(S.kind);
   }
   function openWal() { var w = wallets(); $('wCard').value = w ? String(w.card).replace('.', ',') : ''; $('wCash').value = w ? String(w.cash).replace('.', ',') : ''; $('wMv').value = ''; $('wBg').hidden = false; }
   function closeWal() { $('wBg').hidden = true; }
@@ -506,7 +515,7 @@ nav button{font-size:10px}
     else if (!rl.hidden) rl.textContent = '💱 Курс: ' + rt(a / uv) + ' zł за $' + (S.init.invest && S.init.invest.rate ? ' (в банку зараз ≈ ' + rt(S.init.invest.rate) + ')' : '');
     $('pinNow').hidden = !(isEx && dsc && pinIdx(dsc, k === 'cry' ? 'usd' : 'zl') < 0);
     if (k === 'sal') { b.textContent = stot > 0 ? 'Записати ' + fmt(stot) + ' zł' : 'Записати'; return; }
-    b.textContent = a > 0 ? 'Записати ' + fmt(a) + ' ' + KINDS[k].cur + (k === 'inv' && uv > 0 ? ' → ' + fmt(uv) + ' $' : '') : 'Записати';
+    b.textContent = a > 0 ? 'Записати ' + fmt(a) + ' ' + curOf(k) + (k === 'inv' && uv > 0 ? ' → ' + fmt(uv) + ' $' : '') : 'Записати';
   }
   function renderDebtChips() {
     var d = S.init.debts, h = '';
@@ -558,19 +567,20 @@ nav button{font-size:10px}
   function save() {
     if ($('save').disabled) return;
     var k = S.kind, a = amountVal() || 0;
-    var p = { house: parseFloat(String($('houseIn').value).replace(',', '.')) || 0, bonus: parseFloat(String($('bonusIn').value).replace(',', '.')) || 0, kind: k === 'loan' ? S.loanMode : k, wallet: S.wallet, amount: a, usd: parseFloat(String($('usdIn').value).replace(',', '.')) || 0, desc: $('desc').value.trim(), ym: chosenYm() };
+    var p = { house: parseFloat(String($('houseIn').value).replace(',', '.')) || 0, bonus: parseFloat(String($('bonusIn').value).replace(',', '.')) || 0, kind: k === 'loan' ? S.loanMode : (k === 'exp' && S.wallet === 'crypto' ? 'cry' : k), wallet: S.wallet === 'crypto' ? 'card' : S.wallet, amount: a, usd: parseFloat(String($('usdIn').value).replace(',', '.')) || 0, desc: $('desc').value.trim(), ym: chosenYm() };
     if (k === 'trf') { var z = parseFloat(String($('zlIn').value).replace(',', '.')); if (z > 0) p.zl = z; }
     S.saving = true; updateSave(); $('save').textContent = 'Записую…';
     api('appAdd', p).then(function (r) {
       S.saving = false; S.mo = null; S.yr = null;
       if (r.debts) S.init.debts = r.debts;
       if (r.invest) S.init.invest = r.invest;
-      var what = k === 'inv' ? '📈 ' + fmt(a) + ' zł' + (p.usd ? ' → ' + fmt(p.usd) + ' $ (курс ' + rt(a / p.usd) + ')' : '') : k === 'loan' ? (S.loanMode === 'back' ? p.desc + ' повернув(ла) ' + fmt(a) + ' zł' : '🤝 ' + p.desc + ' — ' + fmt(a) + ' zł') : k === 'sal' ? 'Зарплата ' + fmt(a) + ' zł' + (p.house || p.bonus ? ' (з них ' + [ p.house ? 'квартира ' + fmt(p.house) : '', p.bonus ? 'премія ' + fmt(p.bonus) : ''].filter(Boolean).join(' + ') + ')' : '') : k === 'trf' ? 'Вивід ' + fmt(a) + ' $' : p.desc + ' — ' + fmt(a) + ' ' + KINDS[k].cur;
+      var what = k === 'inv' ? '📈 ' + fmt(a) + ' zł' + (p.usd ? ' → ' + fmt(p.usd) + ' $ (курс ' + rt(a / p.usd) + ')' : '') : k === 'loan' ? (S.loanMode === 'back' ? p.desc + ' повернув(ла) ' + fmt(a) + ' zł' : '🤝 ' + p.desc + ' — ' + fmt(a) + ' zł') : k === 'sal' ? 'Зарплата ' + fmt(a) + ' zł' + (p.house || p.bonus ? ' (з них ' + [ p.house ? 'квартира ' + fmt(p.house) : '', p.bonus ? 'премія ' + fmt(p.bonus) : ''].filter(Boolean).join(' + ') + ')' : '') : k === 'trf' ? 'Вивід ' + fmt(a) + ' $' : p.desc + ' — ' + fmt(a) + ' ' + curOf(k);
       var msg = '✅ ' + what + (k === 'loan' ? '' : ' · ' + mlow(r.ym));
       if (k === 'loan') { var pr = r.debts.people.concat(r.debts.settled).filter(function (x) { return x.name.toLowerCase() === p.desc.toLowerCase(); })[0]; msg += pr && pr.owed > 0.005 ? ' · винен ' + fmt(pr.owed) + ' zł' : ' · боргу нема 🎉'; }
       if (r.same) msg += ' (вже ' + r.same.n + ' рази: ' + (r.same.zl ? fmt(r.same.zl) + ' zł' : fmt(r.same.usd) + ' $') + ')';
       var sg = WSIGN[k === 'loan' ? S.loanMode : k];
-      if (r.wallets && sg) { S.init.wallets = r.wallets; renderWalBar(); msg += ' · ' + WN[r.wallet] + (sg < 0 ? ' лишилось ' : ' тепер ') + fmt(r.wallets[r.wallet]) + ' zł'; }
+      if (p.kind === 'cry' && r.invest && r.invest.value != null) msg += ' · 🪙 в крипті лишилось ' + fmt(r.invest.value) + ' $';
+      if (r.wallets && sg && p.kind !== 'cry') { S.init.wallets = r.wallets; renderWalBar(); msg += ' · ' + WN[r.wallet] + (sg < 0 ? ' лишилось ' : ' тепер ') + fmt(r.wallets[r.wallet]) + ' zł'; }
       toast(msg, r.row); S.lastN = r.n || 1;
       haptic('ok');
       if (k === 'inv') { renderMini(null); renderInvChips(); }
@@ -696,11 +706,35 @@ nav button{font-size:10px}
     api('appSetValue', v).then(function (iv) { S.init.invest = iv; renderInvest(iv); toast(v ? '✅ Вартість портфеля збережено' : 'Вартість портфеля прибрано', null); })
       .catch(function (e) { $('pvSave').disabled = false; toast('Не вийшло: ' + (e && e.message ? e.message : e), null, true); });
   }
+  function lrow(ico, name, val, base, note) {
+    var p = base > 0 ? Math.round(val / base * 1000) / 10 : 0;
+    return '<div class="bar"><div class="r"><span>' + ico + ' ' + name + '</span><span>−' + fmt(val) + ' $ <span style="color:var(--mute);font-weight:500">· ' + String(p).replace('.', ',') + '%</span></span></div><div class="tr"><i style="width:' + Math.max(3, Math.min(100, p)) + '%"></i></div>' + (note ? '<div style="color:var(--mute);font-size:12px;margin-top:3px">' + note + '</div>' : '') + '</div>';
+  }
+  function lossBlock(v) {
+    var bd = v.breakdown, h = '<h3>КУДИ ПОДІЛИСЬ ГРОШІ</h3><div class="card">';
+    if (!bd) return { sum: h + '<div style="color:var(--mute);font-size:13px">Впиши вартість портфеля нижче (блок «Вартість портфеля зараз»), і тут буде видно, куди поділись гроші.</div></div>', forms: '' };
+    var up = bd.totalLoss <= 0;
+    h += '<div style="font-size:30px;font-weight:800;line-height:1.1">' + fmt(v.value) + ' <small style="font-size:16px;color:var(--mute)">$ зараз</small></div><div style="color:var(--mute);font-size:13px;margin:2px 0 8px">≈ ' + fmt(Math.round(v.value * (v.rate || 0))) + ' zł' + (v.valueAdj ? ' · з урахуванням ' + (v.valueAdj > 0 ? '+' : '−') + fmt(Math.abs(v.valueAdj)) + ' $ після ' + esc(v.valueDate) : '') + '</div><div class="kv"><span>Закинув усього</span><b>' + fmt(v.zl) + ' zł · ' + fmt(v.usd) + ' $</b></div>' + (v.trfUsd ? '<div class="kv"><span>Виведено</span><b>' + fmt(v.trfUsd) + ' $</b></div>' : '') + '';
+    h += '<div class="pl ' + (up ? 'good' : 'bad') + '"><div><div class="big">' + (up ? '+' : '−') + fmt(Math.abs(bd.totalLoss)) + ' $</div><small>' + (up ? 'у плюсі' : 'втрачено з вкладеного') + '</small></div><div class="big">' + (up ? '+' : '−') + String(Math.abs(bd.pct)).replace('.', ',') + '%</div></div><div style="height:10px"></div>';
+    if (bd.liq) h += lrow('💥', 'Ліквідації', bd.liq, v.usd, '');
+    if (bd.sold) h += lrow('📉', 'Продав у мінус', bd.sold, v.usd, '');
+    if (bd.held) h += lrow('🪙', 'Просадка по монетах, що лишились', bd.drawdown, v.usd, 'куплено за ' + fmt(bd.held.cost) + ' $, зараз ' + fmt(bd.held.now) + ' $');
+    if (bd.other) h += lrow('➖', 'Інші втрати', bd.other, v.usd, '');
+    if (bd.spent) h += lrow('🛍️', 'Оплачено через крипту', bd.spent, v.usd, 'це витрати, а не збиток від торгівлі');
+    var sumH = h + '</div>';
+    h = '<div class="card" style="margin-top:12px"><div style="font-weight:700">➕ Записати втрату в $</div><div class="sub2" style="margin-top:8px"><button class="pill' + (S.lossCat === 'Ліквідація' ? ' on' : '') + '" data-lc="Ліквідація">💥 Ліквідація</button><button class="pill' + (S.lossCat === 'Продаж в мінус' ? ' on' : '') + '" data-lc="Продаж в мінус">📉 Продаж</button><button class="pill' + (S.lossCat === 'Інше' ? ' on' : '') + '" data-lc="Інше">➖ Інше</button></div><div class="pvrow"><input id="lossUsd" class="txt" inputmode="decimal" placeholder="Скільки $ втратив"><button id="lossSave">Записати</button></div>';
+    if (v.losses && v.losses.length) { h += '<div class="list" style="margin-top:10px">'; v.losses.forEach(function (x) { h += '<div class="kv"><span>' + esc(x.d) + ' · ' + esc(x.name) + '</span><b>−' + fmt(x.usd) + ' $ <button class="edit" data-ld="' + x.row + '">✕</button></b></div>'; }); h += '</div>'; }
+    h += '</div><div class="card" style="margin-top:12px"><div style="font-weight:700">🪙 Монети, що лишились</div><div style="color:var(--mute);font-size:13px;margin-top:2px">За скільки $ купив і скільки вони коштують зараз: з цього рахується просадка.</div><div class="pvrow"><input id="heldCost" class="txt" inputmode="decimal" placeholder="Купив за $" value="' + (v.held ? String(v.held.cost).replace('.', ',') : '') + '"><input id="heldNow" class="txt" inputmode="decimal" placeholder="Зараз $" value="' + (v.held ? String(v.held.now).replace('.', ',') : '') + '"><button id="heldSave">Зберегти</button></div></div>';
+    return { sum: sumH, forms: h };
+  }
+  function setInv(v) { S.init.invest = v; renderInvest(v); }
   function renderInvest(v) {
     var h = '<div class="card hero green"><div class="l">Закинуто в інвестиції</div><div class="v">' + fmt(v.zl) + ' <small>zł</small></div><div class="s">' + (v.n ? '≈ ' + fmt(v.usd) + ' $ · ' + v.n + ' ' + (v.n === 1 ? 'угода' : 'угод') : 'Ще нічого не закинуто') + '</div></div>';
     h += '<button class="addbtn" id="newInv">➕ Закинув в інвестиції</button>';
-    h += '<div class="card" style="margin-top:12px"><div style="font-weight:700">📜 Раніше, до обліку</div><div style="color:var(--mute);font-size:13px;margin-top:2px">Не знаєш по місяцях? Впиши одну загальну суму: скільки всього zł закинув раніше і скільки $ за це отримав.</div><div class="pvrow"><input id="oldZl" class="txt" inputmode="decimal" placeholder="zł всього" value="' + (v.old && v.old.zl ? String(v.old.zl).replace('.', ',') : '') + '"><input id="oldUsd" class="txt" inputmode="decimal" placeholder="$ отримав" value="' + (v.old && v.old.usd ? String(v.old.usd).replace('.', ',') : '') + '"><button id="oldSave">' + (v.old ? 'Змінити' : 'Додати') + '</button></div></div>';
-    if (!v.n) { h += '<div class="card empty" style="margin-top:12px">Натисни кнопку вгорі, щоб записати перше поповнення: скільки злотих закинув і скільки доларів отримав.</div>'; $('iBody').innerHTML = h; return; }
+    var OLDC = '<div class="card" style="margin-top:12px"><div style="font-weight:700">📜 Раніше, до обліку</div><div style="color:var(--mute);font-size:13px;margin-top:2px">Не знаєш по місяцях? Впиши одну загальну суму: скільки всього zł закинув раніше і скільки $ за це отримав.</div><div class="pvrow"><input id="oldZl" class="txt" inputmode="decimal" placeholder="zł всього" value="' + (v.old && v.old.zl ? String(v.old.zl).replace('.', ',') : '') + '"><input id="oldUsd" class="txt" inputmode="decimal" placeholder="$ отримав" value="' + (v.old && v.old.usd ? String(v.old.usd).replace('.', ',') : '') + '"><button id="oldSave">' + (v.old ? 'Змінити' : 'Додати') + '</button></div></div>';
+    var LB = lossBlock(v);
+    if (!v.n) { h += OLDC + '<div class="card empty" style="margin-top:12px">Натисни кнопку вгорі, щоб записати перше поповнення: скільки злотих закинув і скільки доларів отримав.</div>'; $('iBody').innerHTML = h; return; }
+    h += LB.sum + OLDC;
     h += '<div class="stats">' + statBox('Отримано', '<span class="usd">' + fmt(v.usd) + ' $</span>') + statBox('Мій курс', rt(v.avgRate)) + statBox('Курс зараз', v.rate ? rt(v.rate) : '—') + '</div>';
     if (v.rate && v.avgRate) {
       var df = Math.round(Math.abs(v.avgRate - v.rate) / v.rate * 1000) / 10;
@@ -717,6 +751,7 @@ nav button{font-size:10px}
       h += '<div class="bar" style="margin-top:10px"><div class="r"><span>' + (v.pl.back >= 100 ? '✅ Вкладене повернулось' : '🎯 До нуля ще ' + fmt(Math.abs(v.pl.usd)) + ' $') + '</span><span>' + String(Math.min(v.pl.back, 999)).replace('.', ',') + '%</span></div><div class="tr g"><i style="width:' + Math.max(3, Math.min(100, v.pl.back)) + '%"></i></div></div>';
     }
     h += '</div>';
+    h += LB.forms;
     var max = Math.max.apply(null, v.months.map(function (m) { return m.zl; }).concat([1]));
     h += '<h3>ПО МІСЯЦЯХ</h3><div class="card"><div class="chart g">';
     v.months.forEach(function (m) { h += '<div class="c"><b>' + (m.zl ? fmt(m.zl) : '') + '</b><i style="height:' + Math.max(2, Math.round(m.zl / max * 100)) + '%"></i><em>' + esc(m.name.slice(0, 3)) + '</em></div>'; });
@@ -839,8 +874,12 @@ nav button{font-size:10px}
     if (b.id === 'mPrev') { S.which = 'prev'; return renderForm(); }
     if (b.id === 'save') return save();
     if (b.id === 'themeBtn') { THEME = THEME === 'dark' ? 'light' : 'dark'; try { localStorage.setItem('theme', THEME); } catch (e) {} return applyTheme(); }
+    if (b.hasAttribute('data-lc')) { S.lossCat = b.getAttribute('data-lc'); Array.prototype.forEach.call(b.parentNode.children, function (x) { x.className = 'pill' + (x === b ? ' on' : ''); }); return; }
+    if (b.id === 'lossSave') { b.disabled = true; return api('appLossAdd', S.lossCat, $('lossUsd').value).then(function (r) { S.lastN = 1; setInv(r.invest); toast('✅ ' + S.lossCat + ' записано', r.row); haptic('ok'); }).catch(function (er) { b.disabled = false; walFail(er); }); }
+    if (b.id === 'heldSave') { b.disabled = true; return api('appHeldSet', $('heldCost').value, $('heldNow').value).then(function (v2) { setInv(v2); toast('✅ Монети збережено', null); haptic('ok'); }).catch(function (er) { b.disabled = false; walFail(er); }); }
+    if (b.hasAttribute('data-ld')) return api('appLossDel', b.getAttribute('data-ld')).then(function (v2) { setInv(v2); toast('Видалено', null); }).catch(walFail);
     if (b.hasAttribute('data-wopen')) return openWal();
-    if (b.hasAttribute('data-w')) { S.wallet = b.getAttribute('data-w'); try { localStorage.setItem('wallet', S.wallet); } catch (er) {} haptic('ok'); return renderWal(); }
+    if (b.hasAttribute('data-w')) { S.wallet = b.getAttribute('data-w'); if (S.wallet !== 'crypto') { try { localStorage.setItem('wallet', S.wallet); } catch (er) {} } haptic('ok'); return updateSave(); }
     if (b.id === 'wSave') { b.disabled = true; return api('appWalletsSet', $('wCard').value, $('wCash').value).then(function (r) { b.disabled = false; walDone(r, '✅ Залишки збережено'); }).catch(function (er) { b.disabled = false; walFail(er); }); }
     if (b.id === 'wMvCash' || b.id === 'wMvCard') { var mvFrom = b.id === 'wMvCash' ? 'card' : 'cash'; return api('appWalletMove', mvFrom, $('wMv').value).then(function (r) { S.lastN = 1; walDone(r, '🔄 ' + (mvFrom === 'card' ? 'Зняв готівку' : 'Поклав на картку') + ' · 💳 ' + fmt(r.wallets.card) + ' · 💵 ' + fmt(r.wallets.cash) + ' zł', r.row); }).catch(walFail); }
     if (b.id === 'newAsset') return openSheet(null);
