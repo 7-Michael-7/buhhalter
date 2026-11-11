@@ -163,6 +163,9 @@ nav button span{font-size:20px}
 .walc{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 14px;text-align:left;box-shadow:var(--shadow);display:block;width:100%}
 .walc small{display:block;color:var(--mute);font-size:12px;font-weight:600}.walc b{font-size:19px;font-weight:800;white-space:nowrap}.walc b.neg{color:var(--zl)}
 .walc.setup{grid-column:1/3;font-weight:700;font-size:14px}
+.xh{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line,rgba(128,128,128,.18))}.xh:first-child{border-top:0}
+.xh .ic{font-size:20px}.xh .tx{flex:1;min-width:0;font-size:14px;line-height:1.3}.xh .tx small{display:block;color:var(--mute);font-size:12px}
+.xh button{border:0;border-radius:12px;padding:8px 11px;font-size:13px;font-weight:700;background:rgba(255,59,48,.12);color:#ff3b30}
 .walseg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
 .walseg.w3{grid-template-columns:1fr 1fr 1fr}.walseg.w3 .pill{font-size:13px;padding:10px 4px}
 .walseg .pill{padding:11px 8px;font-size:14px;text-align:center;line-height:1.25}.walseg .pill small{font-size:12px;font-weight:600;opacity:.8}
@@ -216,6 +219,7 @@ nav button{font-size:10px}
     <div class="walrow" id="walRow" hidden><div class="ratehint" id="walLbl" style="margin:0 2px"></div><div class="walseg" id="walSeg"></div><div class="ratehint" id="walHint" style="margin:6px 2px 0"></div></div>
     <div class="monthrow" id="monthRow"><small>Місяць:</small><button class="pill" id="mCur"></button><button class="pill" id="mPrev"></button><select class="pill" id="mSel"></select></div>
   </div>
+  <div id="xfHist" hidden></div>
   <div id="chipsWrap">
     <div id="subsBox"><div class="h3row"><h3>📌 МОЇ КНОПКИ</h3><button class="edit" id="editPins">Змінити</button></div><div class="chips" id="subs"></div><button class="pinlink" id="pinNow" hidden>📌 Закріпити як кнопку</button></div>
     <div id="commonBox"><h3>⭐ ЧАСТІ ПОКУПКИ</h3><div class="chips" id="common"></div></div>
@@ -404,6 +408,7 @@ nav button{font-size:10px}
     $('invChipsBox').hidden = !isInv;
     $('zlIn').hidden = !(k === 'trf' && (S.xf.from === 'crypto') !== (S.xf.to === 'crypto'));
     $('xfRow').hidden = k !== 'trf';
+    if (k === 'trf') { if (S.xfK !== 1) { S.xfK = 1; loadXfHist(); } else renderXfHist(); } else { S.xfK = 0; renderXfHist(); }
     $('chipsWrap').hidden = !(k === 'exp' || k === 'cry');
     $('loanRow').hidden = !isLoan;
     $('monthRow').hidden = isLoan;
@@ -495,6 +500,21 @@ nav button{font-size:10px}
     $('cur').textContent = curOf(S.kind);
   }
   function xfBal(k) { var w = wallets(), cv = S.init.invest && S.init.invest.value; return k === 'crypto' ? (cv != null ? fmt(cv) + ' $' : '') : (w ? fmt(w[k]) + ' zł' : ''); }
+  function xfCur(k) { return k === 'crypto' ? '$' : 'zł'; }
+  function renderXfHist() {
+    var box = $('xfHist'); if (!box) return;
+    if (S.kind !== 'trf') { box.hidden = true; return; }
+    var L = S.xfList; box.hidden = false;
+    if (!L) { box.innerHTML = '<h3>🕘 ІСТОРІЯ ПЕРЕКАЗІВ</h3><div class="card"><div class="hint">Завантажую…</div></div>'; return; }
+    var h = '<h3>🕘 ІСТОРІЯ ПЕРЕКАЗІВ</h3><div class="card">';
+    if (!L.length) h += '<div class="hint">Поки немає переказів</div>';
+    L.forEach(function (x) {
+      var same = xfCur(x.from) === xfCur(x.to);
+      h += '<div class="xh"><span class="ic">🔁</span><div class="tx"><b>' + esc(WN[x.from]) + ' → ' + esc(WN[x.to]) + '</b><br>' + fmt(x.give) + ' ' + xfCur(x.from) + (same ? '' : ' → ' + fmt(x.get) + ' ' + xfCur(x.to)) + '<small>' + esc(x.date) + '</small></div><button data-xd="' + x.row + '">Скасувати</button></div>';
+    });
+    box.innerHTML = h + '</div>';
+  }
+  function loadXfHist() { renderXfHist(); if (S.kind !== 'trf') return; api('appXfList').then(function (l) { S.xfList = l; renderXfHist(); }).catch(function () {}); }
   function renderXf() {
     var rate = (S.init && S.init.rate) || 0, a = amountVal() || 0, f = S.xf.from, t = S.xf.to;
     ['from', 'to'].forEach(function (side) {
@@ -616,6 +636,7 @@ nav button{font-size:10px}
         toast(msg, r.row); S.lastN = 1; haptic('ok');
         $('amt').value = ''; $('zlIn').value = ''; updateSave();
         api('appRebuild').catch(function () {});
+        loadXfHist();
       }).catch(function (e) { S.saving = false; updateSave(); toast('Не вийшло: ' + (e && e.message ? e.message : e), null, true); haptic('err'); });
     }
     var p = { house: parseFloat(String($('houseIn').value).replace(',', '.')) || 0, bonus: parseFloat(String($('bonusIn').value).replace(',', '.')) || 0, kind: k === 'loan' ? S.loanMode : (k === 'exp' && S.wallet === 'crypto' ? 'cry' : k), wallet: S.wallet === 'crypto' ? 'card' : S.wallet, amount: a, usd: parseFloat(String($('usdIn').value).replace(',', '.')) || 0, desc: $('desc').value.trim(), ym: chosenYm() };
@@ -929,6 +950,11 @@ nav button{font-size:10px}
     if (b.hasAttribute('data-lc')) { S.lossCat = b.getAttribute('data-lc'); Array.prototype.forEach.call(b.parentNode.children, function (x) { x.className = 'pill' + (x === b ? ' on' : ''); }); return; }
     if (b.id === 'lossSave') { b.disabled = true; return api('appLossAdd', S.lossCat, $('lossUsd').value).then(function (r) { S.lastN = 1; setInv(r.invest); toast('✅ ' + S.lossCat + ' записано', r.row); haptic('ok'); }).catch(function (er) { b.disabled = false; walFail(er); }); }
     if (b.id === 'heldSave') { b.disabled = true; return api('appHeldSet', $('heldCost').value, $('heldNow').value).then(function (v2) { setInv(v2); toast('✅ Монети збережено', null); haptic('ok'); }).catch(function (er) { b.disabled = false; walFail(er); }); }
+    if (b.hasAttribute('data-xd')) {
+      if (b.getAttribute('data-confirm') !== '1') { b.setAttribute('data-confirm', '1'); b.textContent = 'Точно?'; setTimeout(function () { try { b.setAttribute('data-confirm', '0'); b.textContent = 'Скасувати'; } catch (er) {} }, 3500); return; }
+      b.disabled = true;
+      return api('appXfDel', b.getAttribute('data-xd')).then(function (r) { S.init.wallets = r.wallets; S.init.invest = r.invest; S.xfList = r.list; S.mo = null; renderWalBar(); renderXfHist(); renderXf(); toast('↩️ Переказ скасовано, гроші повернулись', null); haptic('ok'); api('appRebuild').catch(function () {}); }).catch(function (e) { b.disabled = false; walFail(e); });
+    }
     if (b.hasAttribute('data-ld')) return api('appLossDel', b.getAttribute('data-ld')).then(function (v2) { setInv(v2); toast('Видалено', null); }).catch(walFail);
     if (b.hasAttribute('data-xf')) { var xp = b.getAttribute('data-xf').split(':'), side = xp[0], val = xp[1], oth = side === 'from' ? 'to' : 'from'; if (S.xf[oth] === val) S.xf[oth] = S.xf[side]; S.xf[side] = val; $('zlIn').value = ''; haptic('ok'); renderForm(); return; }
     if (b.id === 'xfSwap') { var tmp = S.xf.from; S.xf.from = S.xf.to; S.xf.to = tmp; $('zlIn').value = ''; haptic('ok'); renderForm(); return; }
