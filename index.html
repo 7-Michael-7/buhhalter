@@ -205,6 +205,7 @@ nav button{font-size:10px}
 <section id="tabAdd" class="tab">
   <div class="walbar" id="walBar"></div>
   <div class="seg" id="kinds"></div>
+  <div class="ratehint" id="kindHint" hidden style="margin:8px 4px 0;line-height:1.35"></div>
   <div class="card" style="margin-top:12px">
     <div class="ratehint" id="amtLbl" hidden style="margin:0 2px 2px">💰 Загальна зарплата (вже з квартирою й премією)</div>
     <div class="amtrow"><input id="amt" inputmode="decimal" placeholder="0" autocomplete="off"><span id="cur">zł</span></div>
@@ -408,7 +409,10 @@ nav button{font-size:10px}
     $('invChipsBox').hidden = !isInv;
     $('zlIn').hidden = !(k === 'trf' && (S.xf.from === 'crypto') !== (S.xf.to === 'crypto'));
     $('xfRow').hidden = k !== 'trf';
-    if (k === 'trf') { if (S.xfK !== 1) { S.xfK = 1; loadXfHist(); } else renderXfHist(); } else { S.xfK = 0; renderXfHist(); }
+    var kh = $('kindHint');
+    kh.hidden = !(k === 'inv' || k === 'trf');
+    kh.innerHTML = k === 'inv' ? '📈 <b>Інвестиція</b> — нові гроші йдуть у крипту (купівля монет надовго). Рахується в «закинув усього», знімається з картки чи готівки.' : '🔁 <b>Переказ</b> — просто переклав гроші між карткою, готівкою й крипто. Не витрата. Переказ у крипту теж додається до «закинув».';
+    if (k === 'trf' || k === 'inv') { if (S.xfK !== k) { S.xfK = k; loadXfHist(); } else renderXfHist(); } else { S.xfK = 0; renderXfHist(); }
     $('chipsWrap').hidden = !(k === 'exp' || k === 'cry');
     $('loanRow').hidden = !isLoan;
     $('monthRow').hidden = isLoan;
@@ -503,18 +507,25 @@ nav button{font-size:10px}
   function xfCur(k) { return k === 'crypto' ? '$' : 'zł'; }
   function renderXfHist() {
     var box = $('xfHist'); if (!box) return;
-    if (S.kind !== 'trf') { box.hidden = true; return; }
-    var L = S.xfList; box.hidden = false;
-    if (!L) { box.innerHTML = '<h3>🕘 ІСТОРІЯ ПЕРЕКАЗІВ</h3><div class="card"><div class="hint">Завантажую…</div></div>'; return; }
-    var h = '<h3>🕘 ІСТОРІЯ ПЕРЕКАЗІВ</h3><div class="card">';
-    if (!L.length) h += '<div class="hint">Поки немає переказів</div>';
+    var inv = S.kind === 'inv';
+    if (S.kind !== 'trf' && !inv) { box.hidden = true; return; }
+    var L = inv ? S.invList : S.xfList; box.hidden = false;
+    var title = inv ? '🕘 МОЇ ІНВЕСТИЦІЇ' : '🕘 ІСТОРІЯ ПЕРЕКАЗІВ';
+    if (!L) { box.innerHTML = '<h3>' + title + '</h3><div class="card"><div class="hint">Завантажую…</div></div>'; return; }
+    var h = '<h3>' + title + '</h3><div class="card">';
+    if (!L.length) h += '<div class="hint">' + (inv ? 'Поки немає записів' : 'Поки немає переказів') + '</div>';
     L.forEach(function (x) {
-      var same = xfCur(x.from) === xfCur(x.to);
-      h += '<div class="xh"><span class="ic">🔁</span><div class="tx"><b>' + esc(WN[x.from]) + ' → ' + esc(WN[x.to]) + '</b><br>' + fmt(x.give) + ' ' + xfCur(x.from) + (same ? '' : ' → ' + fmt(x.get) + ' ' + xfCur(x.to)) + '<small>' + esc(x.date) + '</small></div><button data-xd="' + x.row + '">Скасувати</button></div>';
+      if (inv) h += '<div class="xh"><span class="ic">📈</span><div class="tx"><b>' + esc(x.desc || 'Крипта') + '</b> · ' + esc(WN[x.from] || '') + '<br>' + fmt(x.zl) + ' zł' + (x.usd ? ' → ' + fmt(x.usd) + ' $' : '') + '<small>' + esc(x.date) + '</small></div><button data-xd="' + x.row + '">Скасувати</button></div>';
+      else { var same = xfCur(x.from) === xfCur(x.to);
+        h += '<div class="xh"><span class="ic">🔁</span><div class="tx"><b>' + esc(WN[x.from]) + ' → ' + esc(WN[x.to]) + '</b><br>' + fmt(x.give) + ' ' + xfCur(x.from) + (same ? '' : ' → ' + fmt(x.get) + ' ' + xfCur(x.to)) + '<small>' + esc(x.date) + '</small></div><button data-xd="' + x.row + '">Скасувати</button></div>'; }
     });
     box.innerHTML = h + '</div>';
   }
-  function loadXfHist() { renderXfHist(); if (S.kind !== 'trf') return; api('appXfList').then(function (l) { S.xfList = l; renderXfHist(); }).catch(function () {}); }
+  function loadXfHist() {
+    renderXfHist();
+    if (S.kind === 'trf') api('appXfList').then(function (l) { S.xfList = l; renderXfHist(); }).catch(function (e) { $('xfHist').innerHTML = '<h3>🕘 ІСТОРІЯ ПЕРЕКАЗІВ</h3><div class="card"><div class="hint">Не вдалось завантажити: ' + esc(e && e.message ? e.message : e) + '</div></div>'; });
+    else if (S.kind === 'inv') api('appInvList').then(function (l) { S.invList = l; renderXfHist(); }).catch(function (e) { $('xfHist').innerHTML = '<h3>🕘 МОЇ ІНВЕСТИЦІЇ</h3><div class="card"><div class="hint">Не вдалось завантажити: ' + esc(e && e.message ? e.message : e) + '</div></div>'; });
+  }
   function renderXf() {
     var rate = (S.init && S.init.rate) || 0, a = amountVal() || 0, f = S.xf.from, t = S.xf.to;
     ['from', 'to'].forEach(function (side) {
@@ -643,6 +654,7 @@ nav button{font-size:10px}
     if (k === 'trf') { var z = parseFloat(String($('zlIn').value).replace(',', '.')); if (z > 0) p.zl = z; }
     S.saving = true; updateSave(); $('save').textContent = 'Записую…';
     api('appAdd', p).then(function (r) {
+      if (k === 'inv') setTimeout(loadXfHist, 50);
       S.saving = false; S.mo = null; S.yr = null;
       if (r.debts) S.init.debts = r.debts;
       if (r.invest) S.init.invest = r.invest;
@@ -953,7 +965,7 @@ nav button{font-size:10px}
     if (b.hasAttribute('data-xd')) {
       if (b.getAttribute('data-confirm') !== '1') { b.setAttribute('data-confirm', '1'); b.textContent = 'Точно?'; setTimeout(function () { try { b.setAttribute('data-confirm', '0'); b.textContent = 'Скасувати'; } catch (er) {} }, 3500); return; }
       b.disabled = true;
-      return api('appXfDel', b.getAttribute('data-xd')).then(function (r) { S.init.wallets = r.wallets; S.init.invest = r.invest; S.xfList = r.list; S.mo = null; renderWalBar(); renderXfHist(); renderXf(); toast('↩️ Переказ скасовано, гроші повернулись', null); haptic('ok'); api('appRebuild').catch(function () {}); }).catch(function (e) { b.disabled = false; walFail(e); });
+      return api('appXfDel', b.getAttribute('data-xd')).then(function (r) { S.init.wallets = r.wallets; S.init.invest = r.invest; S.xfList = r.list; S.invList = r.invList; S.mo = null; renderWalBar(); renderXfHist(); renderXf(); toast('↩️ Переказ скасовано, гроші повернулись', null); haptic('ok'); api('appRebuild').catch(function () {}); }).catch(function (e) { b.disabled = false; walFail(e); });
     }
     if (b.hasAttribute('data-ld')) return api('appLossDel', b.getAttribute('data-ld')).then(function (v2) { setInv(v2); toast('Видалено', null); }).catch(walFail);
     if (b.hasAttribute('data-xf')) { var xp = b.getAttribute('data-xf').split(':'), side = xp[0], val = xp[1], oth = side === 'from' ? 'to' : 'from'; if (S.xf[oth] === val) S.xf[oth] = S.xf[side]; S.xf[side] = val; $('zlIn').value = ''; haptic('ok'); renderForm(); return; }
